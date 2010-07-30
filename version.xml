@@ -5,11 +5,6 @@
   <summary>view (and modify) your project version in multiple commonly-used places</summary>
   <description>
   </description>
-  <group main="version">
-		<implementation id="sha1new=fd922b49210b8a26f2db866640a29c76cd208efb" released="2010-07-24" version="0.1">
-  
-    <manifest-digest sha256="3e98d76fc60324eeae6eca480270595e59c32fa00a1b6d409de316f0fb2f46f5"/>
-    <archive href="http://gfxmonk.net/dist/0install/version/version-0.1.tgz" size="961"/>
-  </implementation>
+  <group main="version.py">
   </group>
 </interface>
