@@ -98,7 +98,10 @@ def get_version(input, current_versions):
 	"""
 	if all([char == '+' for char in input]):
 		return current_versions[0].increment(len(input))
-
+	elif input == 'date':
+		import time
+		v = time.strftime("%Y%m%d.%H%M")
+		return Version(v)
 	elif input == '=':
 		return current_versions[0]
 	else:
