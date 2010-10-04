@@ -33,10 +33,10 @@ def setup_py(val=None):
 setup_py.desc = "setup.py"
 
 version_strategies = [setup_py, version_file]
-def version_types(*a):
+def version_types(new_version=None):
 	def do(strategy):
 		try:
-			return strategy(*a)
+			return strategy(new_version)
 		except StandardError, e:
 			print >> sys.stderr, "[ error: %s  (%s)]" % (e,strategy.desc)
 			if VERBOSE:
@@ -45,11 +45,15 @@ def version_types(*a):
 	return [r for r in results if r]
 
 class Version(object):
+	@classmethod
+	def guess(cls):
+		version_types()[0]
+
 	def __init__(self, number, desc=None):
 		self.number = number
 		self.desc = desc
 	
-	def increment(self, levels):
+	def increment(self, levels=1):
 		before, middle, after = split(self.number, levels)
 		middle = int(middle) + 1
 		after = [0 for part in after]
@@ -57,8 +61,11 @@ class Version(object):
 		return Version(all_parts)
 
 	def __str__(self):
+		return str(self.number)
+
+	def describe(self):
 		return "%-8s (%s)" % (self.desc, self.number)
-	
+
 	def __repr__(self):
 		return "Version(%r)" % (self.number,)
 	
@@ -70,7 +77,7 @@ def main(args):
 		print >> sys.stderr, "Usage: %s [version]" % (os.path.basename(sys.argv[0]),)
 		sys.exit(1)
 	versions = version_types()
-	print "\n".join(map(str, versions))
+	print "\n".join([version.describe() for version in versions])
 	if len(args) == 1:
 		new_version = get_version(args[0], versions)
 		ok = raw_input("\nchange version to %s? " % (new_version.number,)).strip().lower() in ('y','yes','')

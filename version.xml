@@ -10,5 +10,9 @@
     <manifest-digest sha256="193941f6f9f61c35ea94156cfd1c8e52e25577ce3e23f89db0eead9120154a65"/>
     <archive href="http://gfxmonk.net/dist/0install/version/version-0.2.tgz" size="1551"/>
   </implementation>
+		<implementation id="sha1new=914352d2bf3420c6135ead0deedf4a2c47e9f3d4" released="2010-10-04" version="0.3">
+    <manifest-digest sha256="c5dfc96c8e5c8728e9a405f6dea26117cba748e8bf3c0f20db284ae6e39f406e"/>
+    <archive href="http://gfxmonk.net/dist/0install/version/version-0.3.tgz" size="1599"/>
+  </implementation>
   </group>
 </interface>
