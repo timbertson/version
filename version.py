@@ -17,22 +17,27 @@ def version_file(val=None):
 			return True
 version_file.desc = "VERSION"
 
+def conf_file(val=None):
+	return replace("conf.py", re.compile("""(?P<pre>(?:version|release)\s*=\s*['"])(?P<version>[^'"]*)"""), val)
+conf_file.desc = "conf.py"
+
+def replace(filename, regex, val):
+	if not os.path.exists(filename):
+		return None
+	with open(filename) as f:
+		lines = f.read()
+	if val is None:
+		return re.search(regex, lines).group('version')
+	else:
+		with open(filename, 'w') as f:
+			f.write(re.sub(regex, r"\g<pre>%s" % (val,), lines))
+		return True
+
 def setup_py(val=None):
-	s = "setup.py"
-	if os.path.exists(s):
-		version_re = re.compile("""(?P<pre>version\s*=\s*['"])(?P<version>[^'"]*)""")
-		with open(s) as f:
-			lines = f.read()
-			lines = open(s).read()
-		if val is None:
-			return re.search(version_re, lines).group('version')
-		else:
-			with open(s, 'w') as f:
-				f.write(re.sub(version_re, r"\g<pre>%s" % (val,), lines, 1))
-			return True
+	return replace("setup.py", re.compile("""(?P<pre>version\s*=\s*['"])(?P<version>[^'"]*)"""), val)
 setup_py.desc = "setup.py"
 
-version_strategies = [setup_py, version_file]
+version_strategies = [setup_py, version_file, conf_file]
 def version_types(new_version=None):
 	def do(strategy):
 		try:
