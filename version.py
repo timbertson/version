@@ -59,11 +59,46 @@ class Version(object):
 		self.desc = desc
 	
 	def increment(self, levels=1):
+		"""
+		Increment the version component at `levels` least-significant
+		position (1 is the least significant):
+
+		>>> Version('1.2.3').increment()
+		Version('1.2.4')
+		>>> Version('1.2.3').increment(2)
+		Version('1.3.0')
+		>>> Version('1.2.3').increment(3)
+		Version('2.0.0')
+
+		-pre, -rc and -post suffixes are handled also:
+
+		>>> Version('0.1.3-pre').increment()
+		Version('0.1.3')
+		>>> Version('0.1.3-post').increment()
+		Version('0.1.4')
+		>>> Version('0.1.3-post').increment(2)
+		Version('0.2.0')
+		>>> Version('0.1.3-rc').increment()
+		Version('0.1.3')
+
+		"""
 		before, middle, after = split(self.number, levels)
+
+		middle, suffix = split_suffix(middle)
 		middle = int(middle) + 1
+		if suffix is not None:
+			if suffix in ('pre','rc'):
+				# these suffixes mean we haven't reached
+				# the stated version yet
+				middle -= 1
+
 		after = [0 for part in after]
 		all_parts = ".".join(map(str, before + [middle] + after))
 		return Version(all_parts)
+	
+	def suffix(self, suf):
+		version, old_suf = split_suffix(self.number)
+		return Version("%s-%s" % (version, suf))
 
 	def __str__(self):
 		return str(self.number)
@@ -77,15 +112,48 @@ class Version(object):
 	def __nonzero__(self):
 		return self.number is not None
 
-def main(args):
-	if len(args) > 1 or '--help' in args:
-		print >> sys.stderr, "Usage: %s [version]" % (os.path.basename(sys.argv[0]),)
-		sys.exit(1)
+def prompt(msg):
+	if sys.stdin.isatty():
+		return raw_input(msg).strip().lower() in ('y','yes','')
+	else:
+		return True
+
+def main(opts, input=None):
+	"""
+	
+	>>> # hacky stuff to mock out functionality
+	>>> import version
+	>>> def version_types(new=None):
+	...     if new: print ":: new %s" % (new,)
+	...     return [Version('0.1.2', 'fake')]
+	>>> version.version_types = version_types
+	>>> class Object(object):
+	... 	def __init__(self, **k):
+	... 		[setattr(self, k, v) for k, v in k.items()]
+
+	>>> version.main(Object(suffix='post'))
+	fake     (0.1.2)
+	:: new 0.1.2-post
+	changed version in 1 files.
+
+	>>> version.main(Object(suffix='post'), '+')
+	fake     (0.1.2)
+	:: new 0.1.3-post
+	changed version in 1 files.
+
+	>>> version.main(Object(suffix='pre'), '++')
+	fake     (0.1.2)
+	:: new 0.2.0-pre
+	changed version in 1 files.
+	"""
 	versions = version_types()
 	print "\n".join([version.describe() for version in versions])
-	if len(args) == 1:
-		new_version = get_version(args[0], versions)
-		ok = raw_input("\nchange version to %s? " % (new_version.number,)).strip().lower() in ('y','yes','')
+	if input or opts.suffix:
+		new_version = get_version(input, versions)
+		if opts.suffix:
+			new_version = new_version.suffix(opts.suffix)
+
+		ok = prompt("\nchange version to %s? " % (new_version.number,))
 		if not ok:
 			sys.exit(0)
 		changed = version_types(new_version.number)
@@ -107,7 +175,12 @@ def get_version(input, current_versions):
 	>>> get_version('++', [Version('0.1')])
 	Version('1.0')
 
+	>>> get_version(None, [Version('0.1')])
+	Version('0.1')
+
 	"""
+	if input is None:
+		return current_versions[0]
 	if all([char == '+' for char in input]):
 		return current_versions[0].increment(len(input))
 	elif input == 'date':
@@ -143,13 +216,33 @@ def split(version, idx):
 	less_significant = parts[middle+1:]
 	return (more_significant, parts[middle], less_significant)
 
+
+def split_suffix(part):
+	"""
+	Split a component into non-suffix and suffix component.
+	If no suffix present, return (part, None)
+
+	>>> split_suffix("1-pre")
+	('1', 'pre')
+	>>> split_suffix("2")
+	('2', None)
+	"""
+	if not '-' in part:
+		return (part, None)
+	return tuple(part.rsplit('-', 1))
+
 if __name__ == '__main__':
-	sys_argv = sys.argv[1:]
-	argv = [arg for arg in sys_argv if arg not in ('-v',)]
-	if '-v' in sys_argv:
-		VERBOSE=True
+	import optparse
+	p = optparse.OptionParser(usage="%prog [OPTIONS] [version]")
+	p.add_option('-v', '--verbose', help="print more debugging info")
+	p.add_option('--pre', dest='suffix', help="set -pre suffix")
+	p.add_option('--rc', dest='suffix', help="set -rc suffix")
+	p.add_option('--post', dest='suffix', help="set -post suffix")
+
+	opts, args = p.parse_args()
+
 	try:
-		main(argv)
+		main(opts, *args)
 	except StandardError, e:
 		print >> sys.stderr, e
 		if VERBOSE: raise
