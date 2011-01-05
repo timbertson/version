@@ -26,9 +26,10 @@ def replace(filename, regex, val):
 		return None
 	with open(filename) as f:
 		lines = f.read()
+	match = re.search(regex, lines)
 	if val is None:
-		return re.search(regex, lines).group('version')
-	else:
+		return match.group('version') if match else None
+	elif match:
 		with open(filename, 'w') as f:
 			f.write(re.sub(regex, r"\g<pre>%s" % (val,), lines))
 		return True
@@ -234,12 +235,13 @@ def split_suffix(part):
 if __name__ == '__main__':
 	import optparse
 	p = optparse.OptionParser(usage="%prog [OPTIONS] [version]")
-	p.add_option('-v', '--verbose', help="print more debugging info")
+	p.add_option('-v', '--verbose', action='store_true', help="print more debugging info", default=False)
 	p.add_option('--pre', dest='suffix', help="set -pre suffix")
 	p.add_option('--rc', dest='suffix', help="set -rc suffix")
 	p.add_option('--post', dest='suffix', help="set -post suffix")
 
 	opts, args = p.parse_args()
+	VERBOSE = opts.verbose
 
 	try:
 		main(opts, *args)
