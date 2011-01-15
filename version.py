@@ -131,6 +131,7 @@ def main(opts, input=None):
 	>>> class Object(object):
 	... 	def __init__(self, **k):
 	... 		[setattr(self, k, v) for k, v in k.items()]
+	... 	def __getattr__(self, k): return None
 
 	>>> version.main(Object(suffix='post'))
 	fake     (0.1.2)
@@ -146,9 +147,16 @@ def main(opts, input=None):
 	fake     (0.1.2)
 	:: new 0.2.0-pre
 	changed version in 1 files.
+
+	>>> version.main(Object(raw=True))
+	0.1.2
 	"""
 	versions = version_types()
-	print "\n".join([version.describe() for version in versions])
+	if opts.raw:
+		print versions[0]
+		return
+	else:
+		print "\n".join([version.describe() for version in versions])
 	if input or opts.suffix:
 		new_version = get_version(input, versions)
 		if opts.suffix:
@@ -236,9 +244,10 @@ if __name__ == '__main__':
 	import optparse
 	p = optparse.OptionParser(usage="%prog [OPTIONS] [version]")
 	p.add_option('-v', '--verbose', action='store_true', help="print more debugging info", default=False)
-	p.add_option('--pre', dest='suffix', help="set -pre suffix")
-	p.add_option('--rc', dest='suffix', help="set -rc suffix")
-	p.add_option('--post', dest='suffix', help="set -post suffix")
+	p.add_option('-r', '--raw', action='store_true', help="print a single version string and nothing else")
+	p.add_option('--pre',  action='store_const', const='pre', dest='suffix', help="set -pre suffix", default=None)
+	p.add_option('--rc',   action='store_const', const='rc',  dest='suffix', help="set -rc suffix")
+	p.add_option('--post', action='store_const', const='post',dest='suffix', help="set -post suffix")
 
 	opts, args = p.parse_args()
 	VERBOSE = opts.verbose
