@@ -18,7 +18,7 @@ def version_file(val=None):
 version_file.desc = "VERSION"
 
 def conf_file(val=None):
-	return replace("conf.py", re.compile("""(?P<pre>(?:version|release)\s*=\s*['"])(?P<version>[^'"]*)"""), val)
+	return replace("conf.py", re.compile("""(?P<pre>(?:version|release)\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
 conf_file.desc = "conf.py"
 
 def replace(filename, regex, val):
@@ -35,7 +35,7 @@ def replace(filename, regex, val):
 		return True
 
 def setup_py(val=None):
-	return replace("setup.py", re.compile("""(?P<pre>version\s*=\s*['"])(?P<version>[^'"]*)"""), val)
+	return replace("setup.py", re.compile("""(?P<pre>version\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
 setup_py.desc = "setup.py"
 
 version_strategies = [setup_py, version_file, conf_file]
