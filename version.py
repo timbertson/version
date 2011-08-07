@@ -59,6 +59,57 @@ class Version(object):
 		self.number = number
 		self.desc = desc
 	
+	def next(self):
+		"""
+		Increment the version number *minimally*, according to the zero-install
+		version numbers spec (http://0install.net/interface-spec.html#versions):
+
+		>>> Version('1.0').next()
+		Version('1.0-post')
+
+		>>> Version('1.0-pre').next()
+		Version('1.0-pre1')
+		>>> Version('1.0-pre1').next()
+		Version('1.0-pre2')
+
+		>>> Version('1.0-post1-pre').next()
+		Version('1.0-post1-pre1')
+		>>> Version('1.0-post1-pre1').next()
+		Version('1.0-post1-pre2')
+
+		>>> Version('1.0-rc').next()
+		Version('1.0-rc1')
+		>>> Version('1.0-rc1').next()
+		Version('1.0-rc2')
+
+		>>> Version('1.0-post').next()
+		Version('1.0-post1')
+		>>> Version('1.0-post1').next()
+		Version('1.0-post2')
+		>>> Version('1.0-post07').next()
+		Version('1.0-post8')
+		>>> Version('1.0-post9').next()
+		Version('1.0-post10')
+
+		# arbitrary suffixes are supported, if present:
+		>>> Version('1.0-foo').next()
+		Version('1.0-foo1')
+		"""
+
+		parts = self.number.rsplit('-', 1)
+		if len(parts) == 1:
+			return Version("%s-post" % (self.number,))
+		pre, suffix = parts
+		end_num = re.compile(r"\d+$")
+		end_num_match = re.search(end_num, suffix)
+		if not end_num_match:
+			next_num = 1
+		else:
+			next_num = int(end_num_match.group(), 10) + 1
+			suffix = suffix[:end_num_match.start()]
+		suffix = "%s%s" % (suffix, next_num)
+		return Version('-'.join((pre, suffix)))
+
 	def increment(self, levels=1):
 		"""
 		Increment the version component at `levels` least-significant
@@ -128,6 +179,7 @@ def main(opts, input=None):
 	...     if new: print ":: new %s" % (new,)
 	...     return [Version('0.1.2', 'fake')]
 	>>> version.version_types = version_types
+	>>> version.prompt = lambda *a: True
 	>>> class Object(object):
 	... 	def __init__(self, **k):
 	... 		[setattr(self, k, v) for k, v in k.items()]
@@ -187,6 +239,9 @@ def get_version(input, current_versions):
 	>>> get_version(None, [Version('0.1')])
 	Version('0.1')
 
+	>>> get_version('.', [Version('0.1')])
+	Version('0.1-post')
+
 	"""
 	if input is None:
 		return current_versions[0]
@@ -198,6 +253,8 @@ def get_version(input, current_versions):
 		return Version(v)
 	elif input == '=':
 		return current_versions[0]
+	elif input == '.':
+		return current_versions[0].next()
 	else:
 		return Version(input)
 
