@@ -3,6 +3,7 @@
 import sys, os
 import re
 import traceback
+import itertools
 VERBOSE=False
 
 def version_file(val=None):
@@ -39,118 +40,148 @@ def setup_py(val=None):
 setup_py.desc = "setup.py"
 
 version_strategies = [setup_py, version_file, conf_file]
-def version_types(new_version=None):
-	def do(strategy):
-		try:
-			return strategy(new_version)
-		except StandardError, e:
-			print >> sys.stderr, "[ error: %s  (%s)]" % (e,strategy.desc)
-			if VERBOSE:
-				traceback.print_exc(file=sys.stderr)
-	results = [Version(do(s), desc=s.desc) for s in version_strategies]
-	return [r for r in results if r]
+def version_types():
+	versions = []
+	for strat in version_strategies:
+		value = _apply_strategy(strat)
+		if value:
+			versions.append(Version.parse(value, desc=strat.desc))
+	return versions
+
+def set_version(new_version):
+	do = lambda s: _apply_strategy(s, new_version)
+	results = map(do, version_strategies)
+	successes = filter(bool, results)
+	return list(successes)
+
+def _apply_strategy(strategy, new_version=None):
+	try:
+		return strategy(new_version)
+	except StandardError, e:
+		print >> sys.stderr, "[ error: %s  (%s)]" % (e,strategy.desc)
+		if VERBOSE:
+			traceback.print_exc(file=sys.stderr)
+
+def zip_cmp(pairs):
+	for pair in pairs:
+		c = cmp(*pair)
+		if c != 0:
+			return c
+	return 0
 
 class Version(object):
 	@classmethod
 	def guess(cls):
 		version_types()[0]
+	
+	@classmethod
+	def parse(cls, number, desc=None):
+		try:
+			components = map(VersionComponent.parse, number.split('.'))
+		except:
+			print >> sys.stderr, "Error parsing version number: %r%s" % (
+				number, (" (from " + desc + ")") if desc else '')
+			raise
+		return cls(components, desc=desc)
 
-	def __init__(self, number, desc=None):
-		self.number = number
+	def __init__(self, components, desc=None):
+		self.number = '.'.join(map(str,components)) # XXX REMOVE
+		self.components = components
 		self.desc = desc
 	
+	def __cmp__(self, other):
+		"""
+		>>> sort = lambda *strs: map(str, sorted([Version.parse(x) for x in strs]))
+		>>> sort('0.1','0.10','1.0')
+		['0.1', '0.10', '1.0']
+		>>> sort('1', '1-1', '1-pre','1-rc','1-rc1','1-post')
+		['1-pre', '1-rc', '1-rc1', '1', '1-1', '1-post']
+		>>> sort('1-post-pre', '1-post')
+		['1-post-pre', '1-post']
+		>>> Version.parse('0.1') == Version.parse('0.1.0')
+		True
+		>>> Version.parse('0.1') == Version.parse('0.1-0')
+		True
+		>>> Version.parse('0.1-1') == Version.parse('0.1-whatever1')
+		False
+		"""
+		filler = VersionComponent(0)
+		return zip_cmp(itertools.izip_longest(self.components, other.components, fillvalue=filler))
+
 	def next(self):
 		"""
 		Increment the version number *minimally*, according to the zero-install
 		version numbers spec (http://0install.net/interface-spec.html#versions):
 
-		>>> Version('1.0').next()
+		>>> Version.parse('1.0').next()
 		Version('1.0-post')
 
-		>>> Version('1.0-pre').next()
+		>>> Version.parse('1.0-pre').next()
 		Version('1.0-pre1')
-		>>> Version('1.0-pre1').next()
+		>>> Version.parse('1.0-pre1').next()
 		Version('1.0-pre2')
 
-		>>> Version('1.0-post1-pre').next()
+		>>> Version.parse('1.0-post1-pre').next()
 		Version('1.0-post1-pre1')
-		>>> Version('1.0-post1-pre1').next()
+		>>> Version.parse('1.0-post1-pre1').next()
 		Version('1.0-post1-pre2')
 
-		>>> Version('1.0-rc').next()
+		>>> Version.parse('1.0-rc').next()
 		Version('1.0-rc1')
-		>>> Version('1.0-rc1').next()
+		>>> Version.parse('1.0-rc1').next()
 		Version('1.0-rc2')
 
-		>>> Version('1.0-post').next()
+		>>> Version.parse('1.0-post').next()
 		Version('1.0-post1')
-		>>> Version('1.0-post1').next()
+		>>> Version.parse('1.0-post1').next()
 		Version('1.0-post2')
-		>>> Version('1.0-post07').next()
+		>>> Version.parse('1.0-post07').next()
 		Version('1.0-post8')
-		>>> Version('1.0-post9').next()
+		>>> Version.parse('1.0-post9').next()
 		Version('1.0-post10')
 
 		# arbitrary suffixes are supported, if present:
-		>>> Version('1.0-foo').next()
+		>>> Version.parse('1.0-foo').next()
 		Version('1.0-foo1')
 		"""
 
-		parts = self.number.rsplit('-', 1)
-		if len(parts) == 1:
-			return Version("%s-post" % (self.number,))
-		pre, suffix = parts
-		end_num = re.compile(r"\d+$")
-		end_num_match = re.search(end_num, suffix)
-		if not end_num_match:
-			next_num = 1
-		else:
-			next_num = int(end_num_match.group(), 10) + 1
-			suffix = suffix[:end_num_match.start()]
-		suffix = "%s%s" % (suffix, next_num)
-		return Version('-'.join((pre, suffix)))
+		last = self.components[-1]
+		components = self.components[:-1] + [last.next()]
+		return Version(components)
 
 	def increment(self, levels=1):
 		"""
 		Increment the version component at `levels` least-significant
 		position (1 is the least significant):
 
-		>>> Version('1.2.3').increment()
+		>>> Version.parse('1.2.3').increment()
 		Version('1.2.4')
-		>>> Version('1.2.3').increment(2)
+		>>> Version.parse('1.2.3').increment(2)
 		Version('1.3.0')
-		>>> Version('1.2.3').increment(3)
+		>>> Version.parse('1.2.3').increment(3)
 		Version('2.0.0')
 
 		-pre, -rc and -post suffixes are handled also:
 
-		>>> Version('0.1.3-pre').increment()
+		>>> Version.parse('0.1.3-pre').increment()
 		Version('0.1.3')
-		>>> Version('0.1.3-post').increment()
+		>>> Version.parse('0.1.3-post').increment()
 		Version('0.1.4')
-		>>> Version('0.1.3-post').increment(2)
+		>>> Version.parse('0.1.3-post').increment(2)
 		Version('0.2.0')
-		>>> Version('0.1.3-rc').increment()
+		>>> Version.parse('0.1.3-rc').increment()
 		Version('0.1.3')
 
 		"""
-		before, middle, after = split(self.number, levels)
-
-		middle, suffix = split_suffix(middle)
-		middle = int(middle) + 1
-		if suffix is not None:
-			if suffix in ('pre','rc'):
-				# these suffixes mean we haven't reached
-				# the stated version yet
-				middle -= 1
-
-		after = [0 for part in after]
-		all_parts = ".".join(map(str, before + [middle] + after))
-		return Version(all_parts)
+		before, middle, after = rsplit_list(self.components, levels)
+		middle = middle.increment()
+		after = [VersionComponent(0) for part in after]
+		all_parts = before + [middle] + after
+		return Version(components=all_parts)
 	
 	def suffix(self, suf):
 		version, old_suf = split_suffix(self.number)
-		return Version("%s-%s" % (version, suf))
+		return Version.parse("%s-%s" % (version, suf))
 
 	def __str__(self):
 		return str(self.number)
@@ -175,10 +206,13 @@ def main(opts, input=None):
 	
 	>>> # hacky stuff to mock out functionality
 	>>> import version
-	>>> def version_types(new=None):
-	...     if new: print ":: new %s" % (new,)
-	...     return [Version('0.1.2', 'fake')]
+	>>> def set_version(new):
+	...     print ":: new %s" % (new,)
+	...     return [True]
+	>>> def version_types():
+	...     return [Version.parse('0.1.2', 'fake')]
 	>>> version.version_types = version_types
+	>>> version.set_version = set_version
 	>>> version.prompt = lambda *a: True
 	>>> class Object(object):
 	... 	def __init__(self, **k):
@@ -217,29 +251,29 @@ def main(opts, input=None):
 		ok = prompt("\nchange version to %s? " % (new_version.number,))
 		if not ok:
 			sys.exit(0)
-		changed = version_types(new_version.number)
+		changed = set_version(new_version.number)
 		print "changed version in %s files." % (len(changed),)
 
 def get_version(input, current_versions):
 	"""
 	>>> get_version('1234', [])
 	Version('1234')
-	>>> get_version('+', [Version('0.1.2')])
+	>>> get_version('+', [Version.parse('0.1.2')])
 	Version('0.1.3')
-	>>> get_version('+', [Version('0.1.9')])
+	>>> get_version('+', [Version.parse('0.1.9')])
 	Version('0.1.10')
-	>>> get_version('+', [Version('0.1')])
+	>>> get_version('+', [Version.parse('0.1')])
 	Version('0.2')
 
-	>>> get_version('++', [Version('0.1.2')])
+	>>> get_version('++', [Version.parse('0.1.2')])
 	Version('0.2.0')
-	>>> get_version('++', [Version('0.1')])
+	>>> get_version('++', [Version.parse('0.1')])
 	Version('1.0')
 
-	>>> get_version(None, [Version('0.1')])
+	>>> get_version(None, [Version.parse('0.1')])
 	Version('0.1')
 
-	>>> get_version('.', [Version('0.1')])
+	>>> get_version('.', [Version.parse('0.1')])
 	Version('0.1-post')
 
 	"""
@@ -250,13 +284,35 @@ def get_version(input, current_versions):
 	elif input == 'date':
 		import time
 		v = time.strftime("%Y%m%d.%H%M")
-		return Version(v)
+		return Version.parse(v)
 	elif input == '=':
 		return current_versions[0]
 	elif input == '.':
 		return current_versions[0].next()
 	else:
-		return Version(input)
+		return Version.parse(input)
+
+def rsplit_list(parts, idx):
+	"""splits a version at idx from the lest-significant portion (starting at 1):
+	>>> rsplit_list([0,1,2], 1)
+	([0, 1], 2, [])
+	>>> rsplit_list([0,1,2], 2)
+	([0], 1, [2])
+	>>> rsplit_list([0,1,2], 3)
+	([], 0, [1, 2])
+
+	>>> rsplit_list([0,1], 1)
+	([0], 1, [])
+	>>> rsplit_list([0,1], 2)
+	([], 0, [1])
+
+	>>> rsplit_list([0,1], 3)
+	([], 0, [1])
+	"""
+	middle = max(0, len(parts) - idx)
+	more_significant = parts[:middle]
+	less_significant = parts[middle+1:]
+	return (more_significant, parts[middle], less_significant)
 
 def split(version, idx):
 	"""splits a version at idx from the lest-significant portion (starting at 1):
@@ -296,6 +352,143 @@ def split_suffix(part):
 	if not '-' in part:
 		return (part, None)
 	return tuple(part.rsplit('-', 1))
+
+class VersionComponent(object):
+	"""
+	>>> VersionComponent.parse("1").value
+	1
+	>>> VersionComponent.parse("1-pre2").suffixes
+	[pre2]
+	>>> VersionComponent.parse("1-pre2").suffixes[0].rank
+	2
+	>>> str(VersionComponent.parse("10-pre2"))
+	'10-pre2'
+	"""
+	@classmethod
+	def parse(cls, val):
+		if '-' in val:
+			vals = val.split('-')
+			value = vals[0]
+			suffixes = map(Suffix.parse, vals[1:])
+		else:
+			(value, suffixes) = (val, [])
+		value = int(value)
+		return cls(value, suffixes)
+
+	def __init__(self, value, suffixes=[]):
+		self.value = value
+		self.suffixes = suffixes
+	
+	def __str__(self):
+		return '-'.join(map(str, [self.value] + self.suffixes))
+	
+	def __cmp__(self, other):
+		my_parts = [self.value] + self.suffixes
+		other_parts = [other.value] + other.suffixes
+		return zip_cmp(itertools.izip_longest(my_parts, other_parts, fillvalue = Suffix(None)))
+	
+	def next(self):
+		if not self.suffixes:
+			new_suffixes = [Suffix.parse(None).next()]
+		else:
+			new_suffixes = self.suffixes[:-1] + [self.suffixes[-1].next()]
+		return type(self)(self.value, new_suffixes)
+
+	def increment(self):
+		value = self.value + 1
+		if self.suffixes and self.suffixes[0] < Suffix():
+			# -pre or -rc increment by simply removing the suffix
+			value = self.value
+		return VersionComponent(value)
+
+KNOWN_SUFFIXES = ['pre', 'rc', None, 'post']
+class Suffix(object):
+	"""
+	>>> list(map(str, sorted([
+	... Suffix.parse('pre'),
+	... Suffix.parse('post'),
+	... Suffix.parse('rc'),
+	... Suffix.parse('pre1'),
+	... Suffix.parse('post1'),
+	... Suffix.parse('rc3'),
+	... Suffix.parse('pre2'),
+	... Suffix.parse(None),
+	... ])))
+	['pre', 'pre1', 'pre2', 'rc', 'rc3', '', 'post', 'post1']
+	>>> bool(Suffix.parse('pre'))
+	True
+	>>> bool(Suffix.parse(None))
+	False
+	"""
+	def __init__(self, name=None, rank=0):
+		self.name = name
+		self.rank = rank
+	
+	@classmethod
+	def parse(cls, suffix):
+		if suffix is None:
+			return cls()
+		else:
+			name, rank = cls._split(suffix)
+			return cls(name, rank)
+	
+	def __nonzero__(self):
+		return self.name is not None
+	
+	def __repr__(self):
+		if self.name is None:
+			return ''
+		if self.rank is 0:
+			return str(self.name)
+		return ''.join(map(str, (self.name, self.rank)))
+
+	def next(self):
+		"""
+		>>> Suffix.parse('rc').next()
+		rc1
+		>>> Suffix.parse('rc9').next()
+		rc10
+		>>> Suffix.parse(None).next()
+		post
+		"""
+		if not self:
+			return Suffix('post', 0)
+		else:
+			return Suffix(self.name, self.rank + 1)
+	
+	@classmethod
+	def _split(self, suffix):
+		"""
+		>>> Suffix._split('pre')
+		('pre', 0)
+		>>> Suffix._split('rc5')
+		('rc', 5)
+		>>> Suffix._split('rc11')
+		('rc', 11)
+		"""
+		first_digit = re.search('\d', suffix)
+		if first_digit is None:
+			return (suffix, 0)
+		first_digit = first_digit.start()
+		name = suffix[0:first_digit]
+		rank = int(suffix[first_digit:])
+		return (name, rank)
+
+	def __cmp__(self, other):
+		"""
+		>>> Suffix(None) == Suffix('',0)
+		True
+		"""
+		return cmp(
+			( self._name_ord(), self.rank),
+			(other._name_ord(), other.rank))
+
+	def _name_ord(self):
+		try:
+			return KNOWN_SUFFIXES.index(self.name or None)
+		except ValueError:
+			return len(KNOWN_SUFFIXES)
+
 
 if __name__ == '__main__':
 	import optparse
