@@ -113,5 +113,9 @@ To increment the second-most minor version number
 			<manifest-digest sha256="cd403d582bf5a7210e153dee79bd4806d16b87af6ea0ac8dbe53ed4d3766ae87"/>
 			<archive href="http://gfxmonk.net/dist/0install/version/version-0.6.tgz" size="2823"/>
 		</implementation>
+		<implementation id="sha1new=0e4d12cb7aec60214044d2b79c7e5377c9b38742" released="2011-12-30" version="0.7">
+			<manifest-digest sha256="e7d541188525341c9b95907a7c6fb094bea77e6603698ff4ab1386b933167536"/>
+			<archive href="http://gfxmonk.net/dist/0install/version/version-0.7.tgz" size="4018"/>
+		</implementation>
 	</group>
 </interface>
