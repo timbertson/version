@@ -85,6 +85,7 @@ class Version(object):
 		return cls(components, desc=desc)
 
 	def __init__(self, components, desc=None):
+		assert not isinstance(components, basestring), "use Version.parse()"
 		self.number = '.'.join(map(str,components)) # XXX REMOVE
 		self.components = components
 		self.desc = desc
