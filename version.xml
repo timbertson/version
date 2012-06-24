@@ -80,6 +80,10 @@ To increment the second-most minor version number
 				<arg>--exe</arg>
 			</runner>
 		</command>
+		<requires interface="http://repo.roscidus.com/python/python">
+			<version before="3"/>
+		</requires>
+
 		<environment insert="" mode="prepend" name="PYTHONPATH"/>
 		<implementation id="sha1new=bea229b667512d5b01b6b7f35919ca88ee95af50" released="2010-07-31" version="0.2">
 			<manifest-digest sha256="193941f6f9f61c35ea94156cfd1c8e52e25577ce3e23f89db0eead9120154a65"/>

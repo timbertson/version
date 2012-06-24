@@ -196,6 +196,14 @@ class Version(object):
 	def __nonzero__(self):
 		return self.number is not None
 
+	def __hash__(self):
+		"""
+
+		>>> list(sorted(set(map(Version.parse, ("0.1", "0.2", "0.1")))))
+		[Version('0.1'), Version('0.2')]
+		"""
+		return hash(self.number)
+
 def prompt(msg):
 	if sys.stdin.isatty():
 		return raw_input(msg).strip().lower() in ('y','yes','')
