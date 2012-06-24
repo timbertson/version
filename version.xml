@@ -83,7 +83,6 @@ To increment the second-most minor version number
 		<requires interface="http://repo.roscidus.com/python/python">
 			<version before="3"/>
 		</requires>
-
 		<environment insert="" mode="prepend" name="PYTHONPATH"/>
 		<implementation id="sha1new=bea229b667512d5b01b6b7f35919ca88ee95af50" released="2010-07-31" version="0.2">
 			<manifest-digest sha256="193941f6f9f61c35ea94156cfd1c8e52e25577ce3e23f89db0eead9120154a65"/>
@@ -124,6 +123,10 @@ To increment the second-most minor version number
 		<implementation id="sha1new=1900a1b88389ca01eca6202d5a3f70296d7f2bcf" released="2012-04-26" version="0.7.1">
 			<manifest-digest sha256="7b0f99d4d77031e11131c332239ef20dd9cc18a1b5d21025af8a3f9ea5e8a5c2"/>
 			<archive href="http://gfxmonk.net/dist/0install/version/version-0.7.1.tgz" size="4048"/>
+		</implementation>
+		<implementation id="sha1new=2a5fedc85cef8f800acad4b363deffeb212aa952" released="2012-06-24" version="0.7.2">
+			<manifest-digest sha256="ecc03f98739089a9315c3a228347b83327607bc5fcebd4ed6f21ec083057ba25"/>
+			<archive href="http://gfxmonk.net/dist/0install/version/version-0.7.2.tgz" size="4105"/>
 		</implementation>
 	</group>
 </interface>
