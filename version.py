@@ -4,6 +4,7 @@ import sys, os
 import re
 import traceback
 import itertools
+import warnings
 VERBOSE=False
 
 def version_file(val=None):
@@ -75,13 +76,32 @@ class Version(object):
 		version_types()[0]
 	
 	@classmethod
-	def parse(cls, number, desc=None):
-		try:
-			components = map(VersionComponent.parse, number.split('.'))
-		except:
-			print >> sys.stderr, "Error parsing version number: %r%s" % (
-				number, (" (from " + desc + ")") if desc else '')
-			raise
+	def parse(cls, number, desc=None, coerce=False):
+		"""
+		>>> Version.parse('2.0.1a5')
+		Version('2.0.1-a5')
+
+		>>> Version.parse('2.0.1a5', coerce=True)
+		Version('2.0.1-pre-pre5')
+
+		>>> Version.parse('2.0.1-a5', coerce=True)
+		Version('2.0.1-pre-pre5')
+
+		>>> Version.parse('2.0.1b3', coerce=True)
+		Version('2.0.1-pre-post3')
+
+		>>> Version.parse('2.0.1b3.0', coerce=True)
+		Version('2.0.1-pre-post3.0')
+
+		>>> Version.parse('2.0.1rc3', coerce=True)
+		Version('2.0.1-rc3')
+
+		>>> Version.parse('2.0.1-c3', coerce=True)
+		Version('2.0.1-rc3')
+		"""
+		if coerce:
+			number = number.lower()
+		components = map(lambda s: VersionComponent.parse(s, coerce=coerce), number.split('.'))
 		return cls(components, desc=desc)
 
 	def __init__(self, components, desc=None):
@@ -362,6 +382,41 @@ def split_suffix(part):
 		return (part, None)
 	return tuple(part.rsplit('-', 1))
 
+sentinel=object()
+def take_re(pattern, val, default=sentinel):
+	"""
+	>>> take_re('f.', 'foop')
+	('fo', 'op')
+
+	>>> take_re(re.compile('f.'), 'ofoop')
+	Traceback (most recent call last):
+	ValueError: Value 'ofoop' does not match regex 'f.'
+
+	>>> take_re('f.', 'ofoop', None)
+	(None, 'ofoop')
+	"""
+	match = re.match(pattern, val)
+	if not match:
+		if default is sentinel:
+			raise ValueError("Value %r does not match regex %r" % (val, getattr(pattern, 'pattern', pattern)))
+		return (default, val)
+	found = match.group(0)
+	return (found, val[len(found):])
+
+def _replace_suffix_aliases(s):
+	alpha, number = take_re(_alphas_re, s, '')
+	if alpha == 'a':
+		return ['pre', 'pre' + number]
+	if alpha == 'b':
+		return ['pre', 'post' + number]
+	if alpha == 'c':
+		return ['rc' + number]
+	# everything else, we leave as-is
+	return [s]
+
+_digits_re = re.compile('\d+')
+_alphas_re = re.compile('[a-z]+')
+
 class VersionComponent(object):
 	"""
 	>>> VersionComponent.parse("1").value
@@ -372,17 +427,49 @@ class VersionComponent(object):
 	2
 	>>> str(VersionComponent.parse("10-pre2"))
 	'10-pre2'
+
+	>>> str(VersionComponent.parse("b2"))
+	'0-b2'
+
+	alpha an beta both need to map to "pre-something". This
+	isn't pretty, but should preserve ordering in all cases:
+
+	>>> str(VersionComponent.parse("b2", coerce=True))
+	'0-pre-post2'
+
+	>>> str(VersionComponent.parse("a2", coerce=True))
+	'0-pre-pre2'
+
+	>>> str(VersionComponent.parse("1a2", coerce=True))
+	'1-pre-pre2'
+
+	>>> str(VersionComponent.parse("1_a2", coerce=True))
+	'1-pre-pre2'
+
+	>>> str(VersionComponent.parse("1-c2", coerce=True))
+	'1-rc2'
+
+	>>> str(VersionComponent.parse("rc2", coerce=True))
+	'0-rc2'
+
+	>>> str(VersionComponent.parse("p2", coerce=True))
+	'0-p2'
 	"""
 	@classmethod
-	def parse(cls, val):
-		if '-' in val:
-			vals = val.split('-')
-			value = vals[0]
-			suffixes = map(Suffix.parse, vals[1:])
-		else:
-			(value, suffixes) = (val, [])
-		value = int(value)
-		return cls(value, suffixes)
+	def parse(cls, val, coerce=False):
+		try:
+			seps = '-_' if coerce else '-'
+			value, suffixes = take_re(_digits_re, val, '')
+			suffixes = suffixes.lstrip(seps)
+			suffixes = re.split('[%s]' % (seps,), suffixes)
+			if coerce:
+				suffixes = itertools.chain(*map(_replace_suffix_aliases, suffixes))
+			suffixes = filter(None, suffixes)
+			suffixes = map(Suffix.parse, suffixes)
+			value = int(value) if value else 0
+			return cls(value, suffixes)
+		except (ValueError) as e:
+			raise ValueError("Can't parse version component %s: %s" % (val, e))
 
 	def __init__(self, value, suffixes=[]):
 		self.value = value
@@ -445,11 +532,7 @@ class Suffix(object):
 		return self.name is not None
 	
 	def __repr__(self):
-		if self.name is None:
-			return ''
-		if self.rank is 0:
-			return str(self.name)
-		return ''.join(map(str, (self.name, self.rank)))
+		return ''.join([str(part) for part in (self.name, self.rank) if part])
 
 	def next(self):
 		"""
@@ -475,13 +558,8 @@ class Suffix(object):
 		>>> Suffix._split('rc11')
 		('rc', 11)
 		"""
-		first_digit = re.search('\d', suffix)
-		if first_digit is None:
-			return (suffix, 0)
-		first_digit = first_digit.start()
-		name = suffix[0:first_digit]
-		rank = int(suffix[first_digit:])
-		return (name, rank)
+		text, digits = take_re(_alphas_re, suffix, None)
+		return (text, int(digits or '0'))
 
 	def __cmp__(self, other):
 		"""

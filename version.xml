@@ -75,7 +75,7 @@ To increment the second-most minor version number
 	</rich-description>
 	<group main="version.py">
 		<command name="test">
-			<runner interface="http://gfxmonk.net/dist/0install/nosetests-runner.xml">
+			<runner interface="http://gfxmonk.net/dist/0install/nosetests-runner.xml" command="run-py2">
 				<arg>--with-doctest</arg>
 				<arg>--exe</arg>
 			</runner>
