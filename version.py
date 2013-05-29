@@ -23,12 +23,25 @@ def conf_file(val=None):
 	return replace("conf.py", re.compile("""(?P<pre>(?:version|release)\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
 conf_file.desc = "conf.py"
 
+def json_file(filename):
+	def _replacer(val=None):
+		return replace(filename, re.compile("""(?P<pre>["']?version["']?\s*:\s*['"])(?P<version>[^'"]*)"""), val)
+	_replacer.desc=filename
+	return _replacer
+
+package_json = json_file("package.json")
+bower_json = json_file("bower.json")
+
 def replace(filename, regex, val):
 	if not os.path.exists(filename):
+		if VERBOSE:
+			print >> sys.stderr, "Skipping %s (file doesn't exist)" % (filename,)
 		return None
 	with open(filename) as f:
 		lines = f.read()
 	match = re.search(regex, lines)
+	if VERBOSE and not match:
+		print >> sys.stderr, "No match found in %s" % (filename,)
 	if val is None:
 		return match.group('version') if match else None
 	elif match:
@@ -40,7 +53,7 @@ def setup_py(val=None):
 	return replace("setup.py", re.compile("""(?P<pre>version\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
 setup_py.desc = "setup.py"
 
-version_strategies = [setup_py, version_file, conf_file]
+version_strategies = [version_file, setup_py, conf_file, package_json, bower_json]
 def version_types():
 	versions = []
 	for strat in version_strategies:
@@ -73,7 +86,7 @@ def zip_cmp(pairs):
 class Version(object):
 	@classmethod
 	def guess(cls):
-		version_types()[0]
+		return version_types()[0]
 	
 	@classmethod
 	def parse(cls, number, desc=None, coerce=False):
@@ -98,9 +111,21 @@ class Version(object):
 
 		>>> Version.parse('2.0.1-c3', coerce=True)
 		Version('2.0.1-rc3')
+
+		>>> Version.parse('2.0.1.pre.3', coerce=True)
+		Version('2.0.1-pre-3')
+
+		>>> Version.parse('2.0.1.pre.3.1', coerce=True)
+		Version('2.0.1-pre-3.1')
+
+		>>> Version.parse('2.0.1.pre', coerce=True)
+		Version('2.0.1-pre')
 		"""
 		if coerce:
 			number = number.lower()
+			# combine lonely suffixes into their surrounding numbers
+			number = re.sub(r'(\d+\.)?([a-z]+)(\.\d+)?', lambda match: match.group(0).replace(".", "-"), number)
+
 		components = map(lambda s: VersionComponent.parse(s, coerce=coerce), number.split('.'))
 		return cls(components, desc=desc)
 
