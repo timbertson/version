@@ -59,7 +59,7 @@ def version_types():
 	for strat in version_strategies:
 		value = _apply_strategy(strat)
 		if value:
-			versions.append(Version.parse(value, desc=strat.desc))
+			versions.append(Version.parse(value, desc=strat.desc, expand_symbolic=True))
 	return versions
 
 def set_version(new_version):
@@ -89,7 +89,7 @@ class Version(object):
 		return version_types()[0]
 	
 	@classmethod
-	def parse(cls, number, desc=None, coerce=False):
+	def parse(cls, number, desc=None, coerce=False, expand_symbolic=False):
 		"""
 		>>> Version.parse('2.0.1a5')
 		Version('2.0.1-a5')
@@ -120,7 +120,15 @@ class Version(object):
 
 		>>> Version.parse('2.0.1.pre', coerce=True)
 		Version('2.0.1-pre')
+
+		>>> import time
+		>>> Version.parse('date', expand_symbolic=True).components[0] == strftime('%Y')
+		True
 		"""
+		if expand_symbolic:
+			if number.lower() == 'date':
+				import time
+				return cls.parse("0." + time.strftime("%Y%M%d.%H%M"), desc=desc)
 		if coerce:
 			number = number.lower()
 			# combine lonely suffixes into their surrounding numbers
@@ -335,16 +343,12 @@ def get_version(input, current_versions):
 		return current_versions[0]
 	if all([char == '+' for char in input]):
 		return current_versions[0].increment(len(input))
-	elif input == 'date':
-		import time
-		v = time.strftime("%Y%m%d.%H%M")
-		return Version.parse(v)
 	elif input == '=':
 		return current_versions[0]
 	elif input == '.':
 		return current_versions[0].next()
 	else:
-		return Version.parse(input)
+		return Version.parse(input, expand_symbolic=True)
 
 def rsplit_list(parts, idx):
 	"""splits a version at idx from the lest-significant portion (starting at 1):
