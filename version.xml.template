@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface
+	xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	xmlns:compile="http://zero-install.sourceforge.net/2006/namespaces/0compile"
+	xmlns:release="http://zero-install.sourceforge.net/2007/namespaces/0release">
+
+	<name>version</name>
+	<summary>version</summary>
+	<publish mode="featured|third-party|package|0tools|ignore" xmlns="http://gfxmonk.net/dist/0install"/>
+	<description>
+	</description>
+	<feed-for interface="http://gfxmonk.net/dist/0install/version.xml"/>
+
+	<group>
+		<environment insert="" mode="prepend" name="PYTHONPATH"/>
+		<command name="run" path="version.py">
+		</command>
+
+		<command name="test">
+			<runner command="run-py2" interface="http://gfxmonk.net/dist/0install/nosetests-runner.xml">
+				<arg>--with-doctest</arg>
+				<arg>--exe</arg>
+			</runner>
+		</command>
+		<requires interface="http://repo.roscidus.com/python/python">
+			<version before="3"/>
+		</requires>
+		<environment insert="" mode="prepend" name="PYTHONPATH"/>
+
+
+		<implementation version="{version}" released="{date}">
+			<manifest-digest/>
+			<archive href="{archive}"/>
+		</implementation>
+	</group>
+
+</interface>
+

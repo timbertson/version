@@ -122,7 +122,7 @@ class Version(object):
 		Version('2.0.1-pre')
 
 		>>> import time
-		>>> Version.parse('date', expand_symbolic=True).components[0] == strftime('%Y')
+		>>> str(Version.parse('date', expand_symbolic=True)).startswith('0.' + time.strftime('%Y'))
 		True
 		"""
 		if expand_symbolic:
