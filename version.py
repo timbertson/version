@@ -128,7 +128,7 @@ class Version(object):
 		if expand_symbolic:
 			if number.lower() == 'date':
 				import time
-				return cls.parse("0." + time.strftime("%Y%m%d.%H%M"), desc=desc)
+				return cls.parse("0." + time.strftime("%Y%m%d.%H.%M"), desc=desc)
 		if coerce:
 			number = number.lower()
 			# combine lonely suffixes into their surrounding numbers
