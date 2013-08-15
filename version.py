@@ -506,6 +506,9 @@ class VersionComponent(object):
 	
 	def __str__(self):
 		return '-'.join(map(str, [self.value] + self.suffixes))
+
+	def __repr__(self):
+		return "<VersionComponent %r>" % (self,)
 	
 	def __cmp__(self, other):
 		my_parts = [self.value] + self.suffixes
