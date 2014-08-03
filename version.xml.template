@@ -52,7 +52,7 @@ To increment the second-most minor version number
 			<version before="3"/>
 		</requires>
 		<environment insert="" mode="prepend" name="PYTHONPATH"/>
-		<implementation released="{date}" version="{version}">
+		<implementation version="{version}">
 			<manifest-digest/>
 			<archive href="{archive}"/>
 		</implementation>
