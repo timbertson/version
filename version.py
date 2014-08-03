@@ -301,7 +301,11 @@ def main(opts, input=None):
 	"""
 	versions = version_types()
 	if opts.raw:
-		print versions[0]
+		if input:
+			v = get_version(input, versions)
+		else:
+			v = versions[0]
+		print v
 		return
 	else:
 		print "\n".join([version.describe() for version in versions])
