@@ -40,10 +40,11 @@ To increment the second-most minor version number
 	<feed-for interface="http://gfxmonk.net/dist/0install/version.xml"/>
 	<group>
 		<environment insert="" mode="prepend" name="PYTHONPATH"/>
+		<requires interface="http://repo.roscidus.com/python/python">
+			<version before="3.0"/>
+		</requires>
 		<command name="run" path="version.py">
-			<runner interface="http://repo.roscidus.com/python/python">
-				<version before="3.0"/>
-			</runner>
+			<runner interface="http://repo.roscidus.com/python/python"/>
 		</command>
 		<command name="test">
 			<runner command="run-py2" interface="http://gfxmonk.net/dist/0install/nosetests-runner.xml">
@@ -51,7 +52,6 @@ To increment the second-most minor version number
 				<arg>--exe</arg>
 			</runner>
 		</command>
-		<environment insert="" mode="prepend" name="PYTHONPATH"/>
 		<implementation version="{version}">
 			<manifest-digest/>
 			<archive href="{archive}"/>
