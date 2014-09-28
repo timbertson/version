@@ -1,11 +1,26 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 import sys, os
 import re
 import traceback
 import itertools
 import warnings
+import functools
 VERBOSE=False
+
+try:
+	zip_longest = itertools.izip_longest
+except AttributeError:
+	zip_longest = itertools.zip_longest
+
+try:
+	base_string_type = basestring
+except NameError:
+	base_string_type = str
+
+def is_string(x):
+	return isinstance(x, base_string_type)
 
 def version_file(val=None):
 	v = "VERSION"
@@ -35,13 +50,13 @@ bower_json = json_file("bower.json")
 def replace(filename, regex, val):
 	if not os.path.exists(filename):
 		if VERBOSE:
-			print >> sys.stderr, "Skipping %s (file doesn't exist)" % (filename,)
+			print("Skipping %s (file doesn't exist)" % (filename,), file=sys.stderr)
 		return None
 	with open(filename) as f:
 		lines = f.read()
 	match = re.search(regex, lines)
 	if VERBOSE and not match:
-		print >> sys.stderr, "No match found in %s" % (filename,)
+		print("No match found in %s" % (filename,),  file=sys.stderr)
 	if val is None:
 		return match.group('version') if match else None
 	elif match:
@@ -71,18 +86,21 @@ def set_version(new_version):
 def _apply_strategy(strategy, new_version=None):
 	try:
 		return strategy(new_version)
-	except StandardError, e:
-		print >> sys.stderr, "[ error: %s  (%s)]" % (e,strategy.desc)
+	except StandardError as e:
+		print("[ error: %s  (%s)]" % (e,strategy.desc),  file=sys.stderr)
 		if VERBOSE:
 			traceback.print_exc(file=sys.stderr)
 
+#TODO: replace with rich equality version?
 def zip_cmp(pairs):
 	for pair in pairs:
-		c = cmp(*pair)
-		if c != 0:
-			return c
+		a,b = pair
+		if a == b: continue
+		if a < b: return -1
+		if a > b: return 1
 	return 0
 
+@functools.total_ordering
 class Version(object):
 	@classmethod
 	def guess(cls):
@@ -134,18 +152,24 @@ class Version(object):
 			# combine lonely suffixes into their surrounding numbers
 			number = re.sub(r'(\d+\.)?([a-z]+)(\.\d+)?', lambda match: match.group(0).replace(".", "-"), number)
 
-		components = map(lambda s: VersionComponent.parse(s, coerce=coerce), number.split('.'))
+		components = list(map(lambda s: VersionComponent.parse(s, coerce=coerce), number.split('.')))
 		return cls(components, desc=desc)
 
 	def __init__(self, components, desc=None):
-		assert not isinstance(components, basestring), "use Version.parse()"
+		assert not is_string(components), "use Version.parse()"
 		self.number = '.'.join(map(str,components)) # XXX REMOVE
 		self.components = components
 		self.desc = desc
 	
+	def __eq__(self, other):
+		return self.__cmp__(other) == 0
+
+	def __lt__(self, other):
+		return self.__cmp__(other) < 0
+
 	def __cmp__(self, other):
 		"""
-		>>> sort = lambda *strs: map(str, sorted([Version.parse(x) for x in strs]))
+		>>> sort = lambda *strs: list(map(str, sorted([Version.parse(x) for x in strs])))
 		>>> sort('0.1','0.10','1.0')
 		['0.1', '0.10', '1.0']
 		>>> sort('1', '1-1', '1-pre','1-rc','1-rc1','1-post')
@@ -160,7 +184,7 @@ class Version(object):
 		False
 		"""
 		filler = VersionComponent(0)
-		return zip_cmp(itertools.izip_longest(self.components, other.components, fillvalue=filler))
+		return zip_cmp(zip_longest(self.components, other.components, fillvalue=filler))
 
 	def next(self):
 		"""
@@ -269,7 +293,7 @@ def main(opts, input=None):
 	>>> # hacky stuff to mock out functionality
 	>>> import version
 	>>> def set_version(new):
-	...     print ":: new %s" % (new,)
+	...     print(":: new %s" % (new,))
 	...     return [True]
 	>>> def version_types():
 	...     return [Version.parse('0.1.2', 'fake')]
@@ -305,10 +329,10 @@ def main(opts, input=None):
 			v = get_version(input, versions)
 		else:
 			v = versions[0]
-		print v
+		print(v)
 		return
 	else:
-		print "\n".join([version.describe() for version in versions])
+		print("\n".join([version.describe() for version in versions]))
 	if input or opts.suffix:
 		new_version = get_version(input, versions)
 		if opts.suffix:
@@ -318,7 +342,7 @@ def main(opts, input=None):
 		if not ok:
 			sys.exit(0)
 		changed = set_version(new_version.number)
-		print "changed version in %s files." % (len(changed),)
+		print("changed version in %s files." % (len(changed),))
 
 def get_version(input, current_versions):
 	"""
@@ -450,6 +474,7 @@ def _replace_suffix_aliases(s):
 _digits_re = re.compile('\d+')
 _alphas_re = re.compile('[a-z]+')
 
+@functools.total_ordering
 class VersionComponent(object):
 	"""
 	>>> VersionComponent.parse("1").value
@@ -498,7 +523,7 @@ class VersionComponent(object):
 			if coerce:
 				suffixes = itertools.chain(*map(_replace_suffix_aliases, suffixes))
 			suffixes = filter(None, suffixes)
-			suffixes = map(Suffix.parse, suffixes)
+			suffixes = list(map(Suffix.parse, suffixes))
 			value = int(value) if value else 0
 			return cls(value, suffixes)
 		except (ValueError) as e:
@@ -514,10 +539,16 @@ class VersionComponent(object):
 	def __repr__(self):
 		return "<VersionComponent %s>" % (self,)
 	
+	def __eq__(self, other):
+		return self.__cmp__(other) == 0
+
+	def __lt__(self, other):
+		return self.__cmp__(other) < 0
+
 	def __cmp__(self, other):
 		my_parts = [self.value] + self.suffixes
 		other_parts = [other.value] + other.suffixes
-		return zip_cmp(itertools.izip_longest(my_parts, other_parts, fillvalue = Suffix(None)))
+		return zip_cmp(zip_longest(my_parts, other_parts, fillvalue = Suffix(None)))
 	
 	def next(self):
 		if not self.suffixes:
@@ -534,6 +565,7 @@ class VersionComponent(object):
 		return VersionComponent(value)
 
 KNOWN_SUFFIXES = ['pre', 'rc', None, 'post']
+@functools.total_ordering
 class Suffix(object):
 	"""
 	>>> list(map(str, sorted([
@@ -564,7 +596,10 @@ class Suffix(object):
 			name, rank = cls._split(suffix)
 			return cls(name, rank)
 	
-	def __nonzero__(self):
+	def __nonzero__(self): # py2
+		return self.__bool__()
+
+	def __bool__(self): # py3
 		return self.name is not None
 	
 	def __repr__(self):
@@ -597,14 +632,19 @@ class Suffix(object):
 		text, digits = take_re(_alphas_re, suffix, None)
 		return (text, int(digits or '0'))
 
-	def __cmp__(self, other):
+	@property
+	def _cmp_val(self):
+		return (self._name_ord(), self.rank)
+
+	def __eq__(self, other):
 		"""
 		>>> Suffix(None) == Suffix('',0)
 		True
 		"""
-		return cmp(
-			( self._name_ord(), self.rank),
-			(other._name_ord(), other.rank))
+		return self._cmp_val == other._cmp_val
+
+	def __lt__(self, other):
+		return self._cmp_val < other._cmp_val
 
 	def _name_ord(self):
 		try:
@@ -627,8 +667,8 @@ if __name__ == '__main__':
 
 	try:
 		main(opts, *args)
-	except StandardError, e:
-		print >> sys.stderr, e
+	except StandardError as e:
+		print(e,  file=sys.stderr)
 		if VERBOSE: raise
 	except (KeyboardInterrupt, EOFError):
-		print ""
+		print("")
