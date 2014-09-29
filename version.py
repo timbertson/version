@@ -9,15 +9,16 @@ import warnings
 import functools
 VERBOSE=False
 
-try:
+if sys.version_info < (3,):
+	# python 2
 	zip_longest = itertools.izip_longest
-except AttributeError:
-	zip_longest = itertools.zip_longest
-
-try:
 	base_string_type = basestring
-except NameError:
+	get_input = raw_input
+else:
+	# python 3
+	zip_longest = itertools.zip_longest
 	base_string_type = str
+	get_input = input
 
 def is_string(x):
 	return isinstance(x, base_string_type)
@@ -283,7 +284,7 @@ class Version(object):
 
 def prompt(msg):
 	if sys.stdin.isatty():
-		return raw_input(msg).strip().lower() in ('y','yes','')
+		return get_input(msg).strip().lower() in ('y','yes','')
 	else:
 		return True
 
