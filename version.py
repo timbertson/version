@@ -86,7 +86,7 @@ def set_version(new_version):
 def _apply_strategy(strategy, new_version=None):
 	try:
 		return strategy(new_version)
-	except StandardError as e:
+	except Exception as e:
 		print("[ error: %s  (%s)]" % (e,strategy.desc),  file=sys.stderr)
 		if VERBOSE:
 			traceback.print_exc(file=sys.stderr)
@@ -667,8 +667,10 @@ if __name__ == '__main__':
 
 	try:
 		main(opts, *args)
-	except StandardError as e:
-		print(e,  file=sys.stderr)
-		if VERBOSE: raise
 	except (KeyboardInterrupt, EOFError):
 		print("")
+		sys.exit(1)
+	except Exception as e:
+		print(e,  file=sys.stderr)
+		if VERBOSE: raise
+		sys.exti(1)
