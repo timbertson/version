@@ -674,4 +674,4 @@ if __name__ == '__main__':
 	except Exception as e:
 		print(e,  file=sys.stderr)
 		if VERBOSE: raise
-		sys.exti(1)
+		sys.exit(1)
