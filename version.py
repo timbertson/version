@@ -35,6 +35,14 @@ def version_file(val=None):
 			return True
 version_file.desc = "VERSION"
 
+def opam_file(val=None):
+	files = os.listdir('.')
+	is_opam = lambda n: (n == 'opam' or n.endswith('.opam')) and os.path.isfile(n)
+	files = list(filter(is_opam, files))
+	if len(files) == 1:
+		return replace(files[0], re.compile("""^(?P<pre>(?:version)\s*:\s*")(?P<version>[^"]*)""", re.M), val)
+opam_file.desc = "opam"
+
 def conf_file(val=None):
 	return replace("conf.py", re.compile("""(?P<pre>(?:version|release)\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
 conf_file.desc = "conf.py"
@@ -69,7 +77,7 @@ def setup_py(val=None):
 	return replace("setup.py", re.compile("""(?P<pre>version\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
 setup_py.desc = "setup.py"
 
-version_strategies = [version_file, setup_py, conf_file, package_json, bower_json]
+version_strategies = [version_file, setup_py, conf_file, package_json, bower_json, opam_file]
 def version_types():
 	versions = []
 	for strat in version_strategies:
