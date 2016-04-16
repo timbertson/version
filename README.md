@@ -1,3 +1,5 @@
+<img src="http://gfxmonk.net/dist/status/project/version.png">
+
 version parses common files to find and change
 the current version number of your project.
 
