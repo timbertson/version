@@ -661,7 +661,7 @@ class Suffix(object):
 		except ValueError:
 			return len(KNOWN_SUFFIXES)
 
-def main():
+def _main():
 	import optparse
 	p = optparse.OptionParser(usage="%prog [OPTIONS] [version]")
 	p.add_option('-v', '--verbose', action='store_true', help="print more debugging info", default=False)
@@ -684,4 +684,4 @@ def main():
 		sys.exit(1)
 
 if __name__ == '__main__':
-	main()
+	_main()
