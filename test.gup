@@ -1,0 +1,4 @@
+#!bash -eu
+gup --always
+nix-shell -A py2 --run 'make test'
+nix-shell -A py3 --run 'make test'

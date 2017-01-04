@@ -661,8 +661,7 @@ class Suffix(object):
 		except ValueError:
 			return len(KNOWN_SUFFIXES)
 
-
-if __name__ == '__main__':
+def main():
 	import optparse
 	p = optparse.OptionParser(usage="%prog [OPTIONS] [version]")
 	p.add_option('-v', '--verbose', action='store_true', help="print more debugging info", default=False)
@@ -683,3 +682,6 @@ if __name__ == '__main__':
 		print(e,  file=sys.stderr)
 		if VERBOSE: raise
 		sys.exit(1)
+
+if __name__ == '__main__':
+	main()
