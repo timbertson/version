@@ -1,7 +1,7 @@
-{ lib, pythonPackages, fetchFromGitHub }:
-let srcJSON = lib.importJSON ./src.json; in
-pythonPackages.buildPythonPackage rec {
+{ lib, python3Packages, fetchFromGitHub }:
+let version = lib.removeSuffix "\n" (builtins.readFile ../VERSION); in
+python3Packages.buildPythonPackage {
+  inherit version;
   name = "version-${version}";
-  version = srcJSON.inputs.version;
-  src = fetchFromGitHub srcJSON.params;
+  src = ./..;
 }

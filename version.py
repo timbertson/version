@@ -9,16 +9,9 @@ import warnings
 import functools
 VERBOSE=False
 
-if sys.version_info < (3,):
-	# python 2
-	zip_longest = itertools.izip_longest
-	base_string_type = basestring
-	get_input = raw_input
-else:
-	# python 3
-	zip_longest = itertools.zip_longest
-	base_string_type = str
-	get_input = input
+zip_longest = itertools.zip_longest
+base_string_type = str
+get_input = input
 
 def is_string(x):
 	return isinstance(x, base_string_type)
@@ -34,18 +27,6 @@ def version_file(val=None):
 				f.write(val)
 			return True
 version_file.desc = "VERSION"
-
-def opam_file(val=None):
-	files = os.listdir('.')
-	is_opam = lambda n: (n == 'opam' or n.endswith('.opam')) and os.path.isfile(n)
-	files = list(filter(is_opam, files))
-	if len(files) == 1:
-		return replace(files[0], re.compile("""^(?P<pre>(?:version)\s*:\s*")(?P<version>[^"]*)""", re.M), val)
-opam_file.desc = "opam"
-
-def conf_file(val=None):
-	return replace("conf.py", re.compile("""(?P<pre>(?:version|release)\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
-conf_file.desc = "conf.py"
 
 def json_file(filename):
 	def _replacer(val=None):
