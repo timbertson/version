@@ -6,5 +6,5 @@ setup(
 	name='version',
 	url='http://gfxmonk.net/dist/0install/version.xml',
 	install_requires=[],
-	version='0.14.0',
+	version='0.14.1',
 )
