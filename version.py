@@ -58,7 +58,7 @@ def setup_py(val=None):
 	return replace("setup.py", re.compile("""(?P<pre>version\s*=\s*u?['"])(?P<version>[^'"]*)"""), val)
 setup_py.desc = "setup.py"
 
-version_strategies = [version_file, setup_py, conf_file, package_json, bower_json, opam_file]
+version_strategies = [version_file, setup_py, package_json, bower_json, opam_file]
 def version_types():
 	versions = []
 	for strat in version_strategies:
